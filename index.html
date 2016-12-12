@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<style>
+	.matrix {
+		padding: 5px;
+		border: 1px solid black;
+		margin: 10px;
+	}
+	#display {
+		display: flex;
+		flex-wrap: wrap;
+	}
+	#controls {
+		padding: 5px;
+		border: 1px solid black;
+		margin: 10px;
+		display: flex;
+	}
+	#sample {
+		padding: 5px;
+		border: 1px solid black;
+		margin: 10px;
+		
+	}
+</style>
+<body>
+	<div id='controls'>
+		<button id='start_training'> Train </button>
+		<button id='sample_click'> Sample </button>
+		<table className='table'>
+			<tr>
+				<td>
+					Iterations:
+				</td>
+				<td id='iter'>
+					0
+				</td>
+				<td>
+					Loss
+				</td>
+				<td id='loss'>
+					0
+				</td>
+			</tr>
+		</table>
+	</div>
+	<div id="display">
+
+	</div>
+	<div id='sample'></div>
+</body>
+<script src="https://d3js.org/d3.v4.min.js"></script>
+<script src="r_mat.js"></script>
+<script src="rnn.js"></script>
+<script>
+const characters = 'abcdefghijklmnopqrstuvwxyz .,\'\n":;?!()'.split(''); //ABCDEFGHIJKLMNOPQRSTUVWXYZ
+var rand = function(min, max) {
+    return Math.random() * (max - min) + min;
+};
+
+
+let training = false
+d3.json('ts_chars.json', (data) => {
+	
+	
+	//rnn.data_size = data.length
+	//rnn.vocab_size = characters.length
+	var cursor = 0,
+		seq_length = 25,
+		hidden_size = 100
+	
+	var net = new RNN(characters.length, hidden_size, seq_length)
+
+	d3.select('#start_training').on('click',()=>{
+		if(!training) {
+			train(10, 10)
+		}
+	})
+
+	d3.select('#sample_click').on('click',()=>{
+		d3.select('#sample').text(rnn.sample(rand(0,characters.length-1), 200))
+	})
+
+	
+
+	let train = function (iter, check) {
+		let count = 0
+		training = true
+		while(count < iter) {
+			if (cursor+seq_length+1 >= data.length || count === 0) {
+		      net.hprev = R.Zeros(hidden_size, 1) // reset RNN memory
+		      cursor = 0 // go from start of data
+		    }
+
+		    var inputs = data.slice(cursor, cursor+seq_length).map(char => characters.indexOf(char.toLowerCase()))
+
+		    var targets = data.slice(cursor+1 ,cursor+seq_length+1).map(char => characters.indexOf(char))
+		    console.log(data.slice(cursor, cursor+seq_length), data.slice(cursor+1 ,cursor+seq_length+1))
+		    net.lossFunction(inputs,targets)
+
+
+		    if (count % check === 0) {
+		      	console.log(`iter ${net.iter}, loss: ${net.smooth_loss}`)
+	    	}
+	    	
+   			count++;
+   			cursor += seq_length;
+    	}
+    	net.updateGraphs()
+    	training = false
+    }
+
+    //train(500, 50)
+
+	console.log('start', data.length, R)
+}) 
+</script>
